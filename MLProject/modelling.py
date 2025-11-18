@@ -1,6 +1,7 @@
 import mlflow
 import mlflow.sklearn
 import mlflow.data
+import os
 import pandas as pd
 import json
 import dagshub
@@ -145,6 +146,15 @@ def train_with_tuning():
         disp.plot()
         plt.savefig("confusion_matrix.png")
         mlflow.log_artifact("confusion_matrix.png")
+
+        run_id = mlflow.active_run().info.run_id
+        artifact_dir = "MLProject/artifacts"
+        os.makedirs(artifact_dir, exist_ok=True)
+        file_path = os.path.join(artifact_dir, "best_run_id.txt")
+        with open(file_path, "w") as f:
+            f.write(run_id)
+        
+        print(f"Current Run ID ({run_id}) logged to {file_path}")
 
         print(f" DONE | Accuracy = {acc:.4f} | ROC AUC = {roc:.4f}")
         print("Artefak tersimpan di MLflow UI")

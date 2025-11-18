@@ -1,0 +1,7 @@
+mlflow==2.19.0
+pandas
+scikit-learn
+xgboost
+matplotlib
+dagshub
+boto3 
