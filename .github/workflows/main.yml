@@ -80,7 +80,7 @@ jobs:
     - name: Build Docker Image
       if: env.RUN_ID != ''
       run: |
-        IMAGE_NAME="${{ env.DOCKERHUB_USERNAME }}/loan-approval-model"
+        IMAGE_NAME="${DOCKERHUB_USERNAME}/loan-approval-model"
         echo "Building Docker image: $IMAGE_NAME:$RUN_ID"
 
         mlflow models build-docker \
