@@ -62,7 +62,6 @@ def train_with_tuning():
 
     xgb = XGBClassifier(
         random_state=42, 
-        use_label_encoder=False, 
         eval_metric='logloss'
     )
 
@@ -148,7 +147,7 @@ def train_with_tuning():
         mlflow.log_artifact("confusion_matrix.png")
 
         run_id = mlflow.active_run().info.run_id
-        artifact_dir = "MLProject/artifacts"
+        artifact_dir = "artifacts"
         os.makedirs(artifact_dir, exist_ok=True)
         file_path = os.path.join(artifact_dir, "best_run_id.txt")
         with open(file_path, "w") as f:
