@@ -71,7 +71,7 @@ jobs:
         
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
     
-    - name: Upload Training Artifacts
+    - name: Upload to Github
       uses: actions/upload-artifact@v4
       with:
         name: mlflow-artifacts-${{ github.run_number }}
