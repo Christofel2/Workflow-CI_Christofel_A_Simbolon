@@ -39,7 +39,7 @@ jobs:
         pip install mlflow dagshub pandas scikit-learn xgboost matplotlib docker
         echo "Dependencies installed"
     
-    - name: Run Training Script
+    - name: Run mlflow project
       working-directory: MLProject
       env:
         MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
@@ -47,7 +47,7 @@ jobs:
         MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
       run: |
         echo "=== Starting Model Training ==="
-        python modelling.py
+        mlflow run . -e main --env-manager=local
         
         if [ $? -eq 0 ]; then
           echo "Training completed!"
@@ -71,14 +71,17 @@ jobs:
         
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
     
-    - name: Upload Training Artifacts
+    - name: Install Python dependencies
+      run: |
+        pip install docker
+    
+    - name: Upload to Github
       uses: actions/upload-artifact@v4
       with:
         name: mlflow-artifacts-${{ github.run_number }}
         path: |
-          MLProject/artifacts
-          MLProject/*.json
-          MLProject/*.png
+          artifacts
+          mlruns
         if-no-files-found: warn
     
     - name: Sanitize Docker Hub Username
