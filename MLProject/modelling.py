@@ -13,18 +13,13 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              matthews_corrcoef, confusion_matrix,
                              average_precision_score, ConfusionMatrixDisplay)
 
-# mlflow.set_tracking_uri("http://127.0.0.1:5000/")
-# mlflow.set_experiment("Loan Approval - Tuning ")
+# --- KONFIGURASI DagsHub ---
+DAGSHUB_REPO_OWNER = "Christofel2"
+DAGSHUB_REPO_NAME = "Submission-MSML"
 
-# # --- KONFIGURASI DagsHub ---
-# DAGSHUB_REPO_OWNER = "Christofel2"
-# DAGSHUB_REPO_NAME = "Submission-MSML"
-
-# # Inisialisasi DagsHub
-# dagshub.init(repo_owner=DAGSHUB_REPO_OWNER, repo_name=DAGSHUB_REPO_NAME, mlflow=True)
-
-# mlflow.set_experiment("Loan Approval- Tuning ") 
-
+dagshub.init(repo_owner=DAGSHUB_REPO_OWNER, repo_name=DAGSHUB_REPO_NAME, mlflow=True)
+mlflow.set_tracking_uri(f"https://dagshub.com/{DAGSHUB_REPO_OWNER}/{DAGSHUB_REPO_NAME}.mlflow")
+mlflow.set_experiment("Loan Approval Tuning")
 
 def train_with_tuning():
     # Load Dataset 
@@ -129,8 +124,7 @@ def train_with_tuning():
         #LOG MODEL
         mlflow.sklearn.log_model(
             best_model,
-            artifact_path="best_model_tuning",
-            input_example=X_train.iloc[:5]
+            artifact_path="model",
         )
         
         #ARTEFAK TAMBAHAN
@@ -147,16 +141,13 @@ def train_with_tuning():
         mlflow.log_artifact("confusion_matrix.png")
 
         run_id = mlflow.active_run().info.run_id
-        artifact_dir = "artifacts"
+        artifact_dir = "MLProject/artifacts"
         os.makedirs(artifact_dir, exist_ok=True)
         file_path = os.path.join(artifact_dir, "best_run_id.txt")
         with open(file_path, "w") as f:
             f.write(run_id)
         
-        print(f"Current Run ID ({run_id}) logged to {file_path}")
-
-        print(f" DONE | Accuracy = {acc:.4f} | ROC AUC = {roc:.4f}")
-        print("Artefak tersimpan di MLflow UI")
+        print(f"Run ID saved: {run_id}")
 
 if __name__ == "__main__":
     train_with_tuning()
