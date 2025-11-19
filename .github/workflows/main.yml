@@ -47,7 +47,7 @@ jobs:
         MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
       run: |
         echo "=== Starting Model Training ==="
-        mlflow run . -e main --env-manager=local
+        mlflow run . -e main --env-manager=local --experiment-name "Loan Approval Tuning"
         
         if [ $? -eq 0 ]; then
           echo "Training completed!"
