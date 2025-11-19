@@ -143,7 +143,7 @@ def train_with_tuning():
 
         # SAVE RUN ID
         run_id = mlflow.active_run().info.run_id
-        artifact_dir = "MLProject/artifacts"
+        artifact_dir = "artifacts"
         os.makedirs(artifact_dir, exist_ok=True)
         file_path = os.path.join(artifact_dir, "best_run_id.txt")
         with open(file_path, "w") as f:
