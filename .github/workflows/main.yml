@@ -39,7 +39,7 @@ jobs:
         pip install mlflow dagshub pandas scikit-learn xgboost matplotlib docker
         echo "Dependencies installed"
     
-    - name: Run Training Script
+    - name: Run mlflow project
       working-directory: MLProject
       env:
         MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
@@ -70,6 +70,10 @@ jobs:
         fi
         
         echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+    
+    - name: Install Python dependencies
+      run: |
+        pip install docker
     
     - name: Upload to Github
       uses: actions/upload-artifact@v4
