@@ -76,9 +76,8 @@ jobs:
       with:
         name: mlflow-artifacts-${{ github.run_number }}
         path: |
-          MLProject/artifacts
-          MLProject/*.json
-          MLProject/*.png
+          artifacts
+          mlruns
         if-no-files-found: warn
     
     - name: Sanitize Docker Hub Username
