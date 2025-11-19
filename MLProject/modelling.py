@@ -15,7 +15,7 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
 
 # Set tracking URI dari environment variable
 mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-mlflow.set_experiment("Loan Approval Tuning")
+# mlflow.set_experiment("Loan Approval Tuning")
 
 def train_with_tuning():
     # Load Dataset 
@@ -67,9 +67,6 @@ def train_with_tuning():
     
     print("Grid Search Start")
 
-    # DIHAPUS: with mlflow.start_run() karena sudah di-handle oleh mlflow run
-    # mlflow run sudah membuat parent run secara otomatis
-    
     print("Logging dataset metadata...")
     train_df = X_train.copy()
     train_df[target_col] = y_train
