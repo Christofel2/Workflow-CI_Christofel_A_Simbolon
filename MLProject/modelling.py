@@ -67,90 +67,90 @@ def train_with_tuning():
     
     print("Grid Search Start")
 
-    # HAPUS nested=True karena mlflow run sudah create parent run
-    with mlflow.start_run(run_name="XGBoost_GridSearch_Tuning"):
+    # DIHAPUS: with mlflow.start_run() karena sudah di-handle oleh mlflow run
+    # mlflow run sudah membuat parent run secara otomatis
+    
+    print("Logging dataset metadata...")
+    train_df = X_train.copy()
+    train_df[target_col] = y_train
+    
+    dataset = mlflow.data.from_pandas(
+        train_df, 
+        targets=target_col, 
+        name="Loan_Processed_Train_Tuning"
+    )
+    mlflow.log_input(dataset, context="training")
 
-        print("Logging dataset metadata...")
-        train_df = X_train.copy()
-        train_df[target_col] = y_train
-        
-        dataset = mlflow.data.from_pandas(
-            train_df, 
-            targets=target_col, 
-            name="Loan_Processed_Train_Tuning"
-        )
-        mlflow.log_input(dataset, context="training")
+    print("Fitting model with GridSearch...")
+    grid_search.fit(X_train, y_train)
 
-        print("Fitting model with GridSearch...")
-        grid_search.fit(X_train, y_train)
+    best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
 
-        best_model = grid_search.best_estimator_
-        best_params = grid_search.best_params_
+    print(f"Best Params: {best_params}")
 
-        print(f"Best Params: {best_params}")
+    # LOGGING PARAMETER
+    for p, v in best_params.items():
+        mlflow.log_param(f"best_{p}", v)
 
-        # LOGGING PARAMETER
-        for p, v in best_params.items():
-            mlflow.log_param(f"best_{p}", v)
+    # METRIK
+    print("Calculating metrics...")
+    y_pred = best_model.predict(X_test)
+    y_proba = best_model.predict_proba(X_test)[:, 1]
 
-        # METRIK
-        print("Calculating metrics...")
-        y_pred = best_model.predict(X_test)
-        y_proba = best_model.predict_proba(X_test)[:, 1]
+    acc  = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, average='weighted')
+    rec  = recall_score(y_test, y_pred, average='weighted')
+    f1   = f1_score(y_test, y_pred, average='weighted')
+    roc  = roc_auc_score(y_test, y_proba)
+    ll   = log_loss(y_test, y_proba)
+    mcc  = matthews_corrcoef(y_test, y_pred)
+    pr_auc = average_precision_score(y_test, y_proba)
 
-        acc  = accuracy_score(y_test, y_pred)
-        prec = precision_score(y_test, y_pred, average='weighted')
-        rec  = recall_score(y_test, y_pred, average='weighted')
-        f1   = f1_score(y_test, y_pred, average='weighted')
-        roc  = roc_auc_score(y_test, y_proba)
-        ll   = log_loss(y_test, y_proba)
-        mcc  = matthews_corrcoef(y_test, y_pred)
-        pr_auc = average_precision_score(y_test, y_proba)
+    # LOG SEMUA METRIK
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("precision", prec)
+    mlflow.log_metric("recall", rec)
+    mlflow.log_metric("f1_score", f1)
+    mlflow.log_metric("roc_auc", roc)
+    mlflow.log_metric("log_loss", ll)
+    mlflow.log_metric("matthews_corrcoef", mcc)
+    mlflow.log_metric("pr_auc", pr_auc)
 
-        # LOG SEMUA METRIK
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("precision", prec)
-        mlflow.log_metric("recall", rec)
-        mlflow.log_metric("f1_score", f1)
-        mlflow.log_metric("roc_auc", roc)
-        mlflow.log_metric("log_loss", ll)
-        mlflow.log_metric("matthews_corrcoef", mcc)
-        mlflow.log_metric("pr_auc", pr_auc)
+    print(f"Metrics - Accuracy: {acc:.4f}, F1: {f1:.4f}, ROC-AUC: {roc:.4f}")
 
-        print(f"Metrics - Accuracy: {acc:.4f}, F1: {f1:.4f}, ROC-AUC: {roc:.4f}")
+    # LOG MODEL
+    print("Logging model...")
+    mlflow.sklearn.log_model(
+        best_model,
+        artifact_path="model",
+    )
+    
+    # ARTEFAK TAMBAHAN
+    # JSON 
+    with open("best_params.json", "w") as f:
+        json.dump(best_params, f)
+    mlflow.log_artifact("best_params.json")
 
-        # LOG MODEL
-        print("Logging model...")
-        mlflow.sklearn.log_model(
-            best_model,
-            artifact_path="model",
-        )
-        
-        # ARTEFAK TAMBAHAN
-        # JSON 
-        with open("best_params.json", "w") as f:
-            json.dump(best_params, f)
-        mlflow.log_artifact("best_params.json")
+    # CONFUSION MATRIX
+    print("Creating confusion matrix...")
+    cm = confusion_matrix(y_test, y_pred)
+    disp = ConfusionMatrixDisplay(cm)
+    disp.plot()
+    plt.savefig("confusion_matrix.png")
+    mlflow.log_artifact("confusion_matrix.png")
+    plt.close()
 
-        # CONFUSION MATRIX
-        print("Creating confusion matrix...")
-        cm = confusion_matrix(y_test, y_pred)
-        disp = ConfusionMatrixDisplay(cm)
-        disp.plot()
-        plt.savefig("confusion_matrix.png")
-        mlflow.log_artifact("confusion_matrix.png")
-        plt.close()
-
-        # SAVE RUN ID
-        run_id = mlflow.active_run().info.run_id
-        artifact_dir = "artifacts"
-        os.makedirs(artifact_dir, exist_ok=True)
-        file_path = os.path.join(artifact_dir, "best_run_id.txt")
-        with open(file_path, "w") as f:
-            f.write(run_id)
-        
-        print(f"Run ID saved: {run_id}")
-        print(f"Training completed successfully!")
+    # SAVE RUN ID
+    run_id = mlflow.active_run().info.run_id
+    artifact_dir = "artifacts"
+    os.makedirs(artifact_dir, exist_ok=True)
+    file_path = os.path.join(artifact_dir, "best_run_id.txt")
+    with open(file_path, "w") as f:
+        f.write(run_id)
+    
+    print(f"Run ID saved: {run_id}")
+    print(f"Training completed successfully!")
 
 if __name__ == "__main__":
     train_with_tuning()
