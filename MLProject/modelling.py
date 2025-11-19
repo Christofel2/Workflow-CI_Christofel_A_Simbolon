@@ -72,7 +72,7 @@ def train_with_tuning():
     
     print(" Grid Search Start" )
 
-    with mlflow.start_run(run_name="XGBoost_GridSearch_Tuning"):
+    with mlflow.start_run(run_name="XGBoost_GridSearch_Tuning",nested = True):
 
         print("Logging dataset metadata...")
         train_df = X_train.copy()
