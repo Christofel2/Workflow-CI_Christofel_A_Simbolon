@@ -47,7 +47,7 @@ jobs:
         MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
       run: |
         echo "=== Starting Model Training ==="
-        python modelling.py
+        mlflow run . -e main --env-manager=local
         
         if [ $? -eq 0 ]; then
           echo "Training completed!"
