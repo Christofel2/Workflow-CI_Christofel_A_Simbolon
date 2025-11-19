@@ -17,81 +17,85 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Setup Python 3.12.7
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12.7'
+      - name: Setup Python 3.12.7
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.7'
 
-    - name: Check Environment
-      run: |
-        python --version
-        pip list
-        
-    - name: Install Dependencies
-      run: |
-        pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install mlflow dagshub pandas scikit-learn xgboost matplotlib docker
+      - name: Check Environment
+        run: |
+          python --version
+          pip list
 
-    - name: Run MLflow Project
-      working-directory: ./
-      run: |
-        mlflow run MLProject -e main --env-manager=local
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install mlflow dagshub pandas scikit-learn xgboost matplotlib docker
 
-    - name: Get Latest MLflow Run ID
-      shell: bash
-      run: |
-        BEST_RUN_FILE="MLProject/artifacts/best_run_id.txt"
+      - name: Run MLflow Project
+        working-directory: MLProject
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          python modelling,py
 
-        if [ -f "$BEST_RUN_FILE" ]; then
-          echo "Found best_run_id file at $BEST_RUN_FILE"
-          RUN_ID=$(cat "$BEST_RUN_FILE")
-        else
-          echo "best_run_id file not found. Cannot determine RUN_ID."
-          RUN_ID=""
-        fi
+      - name: Get Latest MLflow Run ID
+        shell: bash
+        run: |
+          BEST_RUN_FILE="MLProject/artifacts/best_run_id.txt"
 
-        echo "Selected RUN_ID=$RUN_ID"
-        echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          if [ -f "$BEST_RUN_FILE" ]; then
+            echo "Found best_run_id file at $BEST_RUN_FILE"
+            RUN_ID=$(cat "$BEST_RUN_FILE")
+          else
+            echo "best_run_id file not found. Cannot determine RUN_ID."
+            RUN_ID=""
+          fi
 
-    - name: Install Python Dependencies
-      run: |
-        pip install docker
+          echo "Selected RUN_ID=$RUN_ID"
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-    - name: Upload to GitHub Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: mlflow-training-artifacts
-        path: |
-          MLProject/artifacts
-          mlruns
-        if-no-files-found: ignore
+      - name: Install Python Dependencies
+        run: |
+          pip install docker
 
-    - name: Build Docker Image
-      if: success() && env.RUN_ID != ''
-      run: |
-        echo "Building Docker image from RUN_ID=${RUN_ID}"
-        mlflow models build-docker \
-          -m "runs:/${RUN_ID}/model" \
-          -n "${DOCKERHUB_USERNAME}/loan-approval-model:${RUN_ID}"
+      - name: Upload to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-training-artifacts
+          path: |
+            MLProject/artifacts
+            mlruns
+          if-no-files-found: ignore
 
-    - name: Login to Docker Hub
-      if: success() && env.RUN_ID != ''
-      run: |
-        echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+      - name: Build Docker Image
+        if: success() && env.RUN_ID != ''
+        run: |
+          echo "Building Docker image from RUN_ID=${RUN_ID}"
+          mlflow models build-docker \
+            -m "runs:/${RUN_ID}/model" \
+            -n "${DOCKERHUB_USERNAME}/loan-approval-model:${RUN_ID}"
 
-    - name: Tag Docker Image
-      if: success() && env.RUN_ID != ''
-      run: |
-        docker tag "${DOCKERHUB_USERNAME}/loan-approval-model:${RUN_ID}" "${DOCKERHUB_USERNAME}/loan-approval-model:latest"
+      - name: Login to Docker Hub
+        if: success() && env.RUN_ID != ''
+        run: |
+          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
 
-    - name: Push Docker Image
-      if: success() && env.RUN_ID != ''
-      run: |
-        docker push "${DOCKERHUB_USERNAME}/loan-approval-model:${RUN_ID}"
-        docker push "${DOCKERHUB_USERNAME}/loan-approval-model:latest"
+      - name: Tag Docker Image
+        if: success() && env.RUN_ID != ''
+        run: |
+          docker tag "${DOCKERHUB_USERNAME}/loan-approval-model:${RUN_ID}" "${DOCKERHUB_USERNAME}/loan-approval-model:latest"
+
+      - name: Push Docker Image
+        if: success() && env.RUN_ID != ''
+        run: |
+          docker push "${DOCKERHUB_USERNAME}/loan-approval-model:${RUN_ID}"
+          docker push "${DOCKERHUB_USERNAME}/loan-approval-model:latest"
