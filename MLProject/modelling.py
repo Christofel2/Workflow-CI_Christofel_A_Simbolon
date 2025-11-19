@@ -13,12 +13,14 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              matthews_corrcoef, confusion_matrix,
                              average_precision_score, ConfusionMatrixDisplay)
 
-# --- KONFIGURASI DagsHub ---
-DAGSHUB_REPO_OWNER = "Christofel2"
-DAGSHUB_REPO_NAME = "Submission-MSML"
+# # --- KONFIGURASI DagsHub ---
+# DAGSHUB_REPO_OWNER = "Christofel2"
+# DAGSHUB_REPO_NAME = "Submission-MSML"
 
-dagshub.init(repo_owner=DAGSHUB_REPO_OWNER, repo_name=DAGSHUB_REPO_NAME, mlflow=True)
-mlflow.set_tracking_uri(f"https://dagshub.com/{DAGSHUB_REPO_OWNER}/{DAGSHUB_REPO_NAME}.mlflow")
+# dagshub.init(repo_owner=DAGSHUB_REPO_OWNER, repo_name=DAGSHUB_REPO_NAME, mlflow=True)
+# mlflow.set_tracking_uri(f"https://dagshub.com/{DAGSHUB_REPO_OWNER}/{DAGSHUB_REPO_NAME}.mlflow")
+
+mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 mlflow.set_experiment("Loan Approval Tuning")
 
 def train_with_tuning():
