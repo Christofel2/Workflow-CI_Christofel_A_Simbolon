@@ -11,7 +11,7 @@ env:
   MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
   MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
   MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
 jobs:
@@ -31,18 +31,15 @@ jobs:
       run: |
         echo "=== Environment Check ==="
         python --version
-        echo ""
-        pwd
-        ls -la MLProject/
     
     - name: Install Dependencies
       run: |
         pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install mlflow dagshub pandas scikit-learn xgboost matplotlib docker
-        echo "✓ Dependencies installed"
+        echo "Dependencies installed"
     
-    - name: Run MLflow Project
+    - name: Run Training Script
       working-directory: MLProject
       env:
         MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
@@ -53,9 +50,9 @@ jobs:
         python modelling.py
         
         if [ $? -eq 0 ]; then
-          echo "✓ Training completed!"
+          echo "Training completed!"
         else
-          echo "❌ Training failed!"
+          echo "Training failed!"
           exit 1
         fi
     
@@ -65,10 +62,10 @@ jobs:
         BEST_RUN_FILE="MLProject/artifacts/best_run_id.txt"
         
         if [ -f "$BEST_RUN_FILE" ]; then
-          RUN_ID=$(cat "$BEST_RUN_FILE")
-          echo "✓ Found Run ID: $RUN_ID"
+          RUN_ID=$(cat "$BEST_RUN_FILE" | tr -d '\n\r')
+          echo "Found Run ID: $RUN_ID"
         else
-          echo "❌ best_run_id.txt not found"
+          echo "best_run_id.txt not found"
           RUN_ID=""
         fi
         
@@ -83,6 +80,16 @@ jobs:
           MLProject/*.json
           MLProject/*.png
         if-no-files-found: warn
+    
+    - name: Sanitize Docker Hub Username
+      if: env.RUN_ID != ''
+      run: |
+        # Remove any whitespace, newlines, and invalid characters
+        CLEAN_USERNAME=$(echo "${{ secrets.DOCKER_HUB_USERNAME }}" | tr -d '[:space:]' | tr -d '\n\r')
+        echo "Original username length: ${#DOCKERHUB_USERNAME}"
+        echo "Cleaned username length: ${#CLEAN_USERNAME}"
+        echo "Cleaned username: $CLEAN_USERNAME"
+        echo "CLEAN_DOCKERHUB_USERNAME=$CLEAN_USERNAME" >> $GITHUB_ENV
     
     - name: Login to Docker Hub
       if: env.RUN_ID != ''
@@ -99,27 +106,54 @@ jobs:
         MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
       run: |
         echo "=== Building Docker Image ==="
-        IMAGE_NAME="${DOCKER_HUB_USERNAME}/loan-approval-model"
-        echo "Building: ${IMAGE_NAME}:${{ env.RUN_ID }}"
         
+        # Use cleaned username
+        IMAGE_NAME="${CLEAN_DOCKERHUB_USERNAME}/loan-approval-model"
+        IMAGE_TAG="${{ env.RUN_ID }}"
+        FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
+        
+        echo "Username: ${CLEAN_DOCKERHUB_USERNAME}"
+        echo "Image name: ${IMAGE_NAME}"
+        echo "Tag: ${IMAGE_TAG}"
+        echo "Full image: ${FULL_IMAGE_NAME}"
+        
+        # Verify no special characters
+        if [[ "$FULL_IMAGE_NAME" =~ [[:space:]] ]]; then
+          echo "ERROR: Image name contains whitespace!"
+          exit 1
+        fi
+        
+        echo ""
+        echo "Building Docker image..."
         mlflow models build-docker \
-          -m "runs:/${{ env.RUN_ID }}/model" \
-          -n "${IMAGE_NAME}:${{ env.RUN_ID }}"
+          -m "runs:/${IMAGE_TAG}/model" \
+          -n "${FULL_IMAGE_NAME}"
+        
+        if [ $? -eq 0 ]; then
+          echo "Docker image built successfully!"
+        else
+          echo "Docker build failed!"
+          exit 1
+        fi
     
     - name: Tag Docker Image
       if: env.RUN_ID != ''
       run: |
-        IMAGE_NAME="${DOCKER_HUB_USERNAME}/loan-approval-model"
+        IMAGE_NAME="${CLEAN_DOCKERHUB_USERNAME}/loan-approval-model"
         docker tag "${IMAGE_NAME}:${{ env.RUN_ID }}" "${IMAGE_NAME}:latest"
+        echo "Image tagged as latest"
     
     - name: Push Docker Images
       if: env.RUN_ID != ''
       run: |
-        IMAGE_NAME="${DOCKER_HUB_USERNAME}/loan-approval-model"
+        IMAGE_NAME="${CLEAN_DOCKERHUB_USERNAME}/loan-approval-model"
+        
+        echo "Pushing ${IMAGE_NAME}:${{ env.RUN_ID }}..."
         docker push "${IMAGE_NAME}:${{ env.RUN_ID }}"
+        
+        echo "Pushing ${IMAGE_NAME}:latest..."
         docker push "${IMAGE_NAME}:latest"
         
-        echo ""
-        echo "✓✓✓ DEPLOYMENT SUCCESSFUL! ✓✓✓"
         echo "Image: ${IMAGE_NAME}:${{ env.RUN_ID }}"
         echo "Latest: ${IMAGE_NAME}:latest"
+        echo "Run ID: ${{ env.RUN_ID }}"
